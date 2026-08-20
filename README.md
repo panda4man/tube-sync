@@ -1,1 +1,1 @@
-# homelab-tube-sync
+# tube-sync
