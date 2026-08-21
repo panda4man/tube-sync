@@ -1,11 +1,51 @@
 services:
+  gluetun-tubesync:
+    container_name: gluetun-tubesync
+    image: qmcgaw/gluetun:v3.41.1
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${PROTONVPN_TUBESYNC_WIREGUARD_PRIVATE_KEY}
+      - SERVER_COUNTRIES=Netherlands
+      - FIREWALL_OUTBOUND_SUBNETS=192.168.50.0/24
+      - TZ=America/New_York
+      - DNS_UPSTREAM_RESOLVERS=cloudflare
+      - DNS_UPSTREAM_RESOLVER_TYPE=plain
+      - BLOCK_MALICIOUS=off
+      - BLOCK_SURVEILLANCE=off
+      - BLOCK_ADS=off
+      - FIREWALL_INPUT_PORTS=4848
+    volumes:
+      - ./gluetun:/gluetun
+    healthcheck:
+      test:
+        - CMD
+        - /gluetun-entrypoint
+        - healthcheck
+      interval: 15s
+      timeout: 10s
+      retries: 3
+    ports:
+      - ${TUBESYNC_PORT:-4848}:4848
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    restart: always
+    networks:
+      - homelab_stack
+
   tubesync:
     image: ghcr.io/meeb/tubesync:latest
     container_name: tubesync
+    network_mode: "service:gluetun-tubesync"
+    depends_on:
+      gluetun-tubesync:
+        condition: service_healthy
     restart: always
     stop_grace_period: 30m
-    ports:
-      - ${TUBESYNC_PORT:-4848}:4848
     volumes:
       - ./config:/config
       - /mnt/user/media-data/media/youtube:/downloads
